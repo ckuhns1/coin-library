@@ -57,7 +57,7 @@ button { cursor: pointer; }
 #lock-error { color: var(--danger); min-height: 1.4em; margin-top: 10px; font-size: .92rem; }
 
 /* ---------- header ---------- */
-header.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent);
+header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--border); }
 .top-row { display: flex; align-items: center; gap: 10px; padding-top: 12px; padding-bottom: 10px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.15rem; margin-right: auto; white-space: nowrap; }
@@ -103,6 +103,9 @@ header.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb
 /* ---------- detail ---------- */
 dialog { border: none; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; color: var(--text); }
 dialog::backdrop { background: rgba(10, 8, 5, .55); }
+/* Safari before 15.4 has no dialog element; the script below fakes it with these rules. */
+.no-dialog dialog:not([open]) { display: none; }
+.no-dialog dialog[open] { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: rgba(10, 8, 5, .55); }
 #detail { width: min(860px, 100vw); height: 100vh; height: 100dvh; margin: 0 auto; }
 @media (min-width: 700px) { #detail { height: auto; max-height: calc(100vh - 48px); margin-top: 24px; } }
 .sheet { background: var(--bg); height: 100%; display: flex; flex-direction: column; }
@@ -231,6 +234,18 @@ a { color: var(--accent); }
 
 <script>
 "use strict";
+if (!window.HTMLDialogElement || !HTMLDialogElement.prototype.showModal) {
+  document.documentElement.classList.add("no-dialog");
+  for (const d of document.querySelectorAll("dialog")) {
+    Object.defineProperty(d, "open", { get() { return this.hasAttribute("open"); } });
+    d.showModal = function () { this.setAttribute("open", ""); };
+    d.close = function () { if (this.open) { this.removeAttribute("open"); this.dispatchEvent(new Event("close")); } };
+  }
+  document.addEventListener("keydown", ev => {
+    const top = [...document.querySelectorAll("dialog[open]")].pop();
+    if (ev.key === "Escape" && top) top.close();
+  });
+}
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const store = {
@@ -258,8 +273,78 @@ async function decrypt(buf) {
   return crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(3, 15) }, S.key, u.slice(15));
 }
 async function inflate(buf) {
+  if (!window.DecompressionStream) return new TextDecoder().decode(inflateZlib(new Uint8Array(buf)));
   const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("deflate"));
   return new Response(stream).text();
+}
+// Small zlib (RFC 1950/1951) decoder for browsers without DecompressionStream (older iPads).
+function inflateZlib(src) {
+  let pos = 2, bit = 0, bitCnt = 0;                       // skip the 2-byte zlib header
+  const out = [];
+  const bits = n => {
+    while (bitCnt < n) { if (pos >= src.length) throw new Error("truncated data"); bit |= src[pos++] << bitCnt; bitCnt += 8; }
+    const v = bit & ((1 << n) - 1); bit >>>= n; bitCnt -= n; return v;
+  };
+  const build = lengths => {                              // canonical Huffman table
+    const counts = new Uint16Array(16), offs = new Uint16Array(16), symbols = new Uint16Array(lengths.length);
+    for (const l of lengths) counts[l]++;
+    counts[0] = 0;
+    for (let i = 1; i < 16; i++) offs[i] = offs[i - 1] + counts[i - 1];
+    lengths.forEach((l, s) => { if (l) symbols[offs[l]++] = s; });
+    return { counts, symbols };
+  };
+  const decode = t => {
+    let code = 0, first = 0, index = 0;
+    for (let len = 1; len < 16; len++) {
+      code |= bits(1);
+      const c = t.counts[len];
+      if (code - first < c) return t.symbols[index + code - first];
+      index += c; first = (first + c) << 1; code <<= 1;
+    }
+    throw new Error("bad code");
+  };
+  const LBASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+  const LEXT = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+  const DBASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+  const DEXT = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+  const fixedL = build(Array.from({ length: 288 }, (_, i) => i < 144 ? 8 : i < 256 ? 9 : i < 280 ? 7 : 8));
+  const fixedD = build(new Array(30).fill(5));
+  let last;
+  do {
+    last = bits(1);
+    const type = bits(2);
+    if (type === 0) {                                     // stored block
+      bit = 0; bitCnt = 0;
+      const len = src[pos] | (src[pos + 1] << 8); pos += 4;
+      for (let i = 0; i < len; i++) out.push(src[pos++]);
+      continue;
+    }
+    let lt = fixedL, dt = fixedD;
+    if (type === 2) {                                     // dynamic Huffman tables
+      const hlit = bits(5) + 257, hdist = bits(5) + 1, hclen = bits(4) + 4;
+      const ORDER = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
+      const cl = new Array(19).fill(0);
+      for (let i = 0; i < hclen; i++) cl[ORDER[i]] = bits(3);
+      const ct = build(cl), lens = [];
+      while (lens.length < hlit + hdist) {
+        const s = decode(ct);
+        if (s < 16) lens.push(s);
+        else if (s === 16) { const p = lens[lens.length - 1]; for (let r = 3 + bits(2); r--;) lens.push(p); }
+        else if (s === 17) { for (let r = 3 + bits(3); r--;) lens.push(0); }
+        else { for (let r = 11 + bits(7); r--;) lens.push(0); }
+      }
+      lt = build(lens.slice(0, hlit)); dt = build(lens.slice(hlit));
+    } else if (type !== 1) throw new Error("bad block type");
+    for (;;) {
+      const s = decode(lt);
+      if (s < 256) { out.push(s); continue; }
+      if (s === 256) break;
+      const i = s - 257, len = LBASE[i] + bits(LEXT[i]);
+      const d = decode(dt), dist = DBASE[d] + bits(DEXT[d]);
+      for (let k = out.length - dist, end = k + len; k < end; k++) out.push(out[k]);
+    }
+  } while (!last);
+  return new Uint8Array(out);
 }
 async function fetchBin(path) {
   const r = await fetch(path, { cache: "no-cache" });
@@ -743,7 +828,7 @@ $("#viewer").addEventListener("touchend", ev => {
     $("#lock-error").textContent = "Couldn't load the library files. If you opened this file directly, use the website link instead.";
     return;
   }
-  if (!window.crypto?.subtle || !window.DecompressionStream) {
+  if (!window.crypto?.subtle) {
     $("#lock-error").textContent = "This browser is too old to open the library. Please update it.";
     return;
   }
