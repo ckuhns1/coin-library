@@ -346,7 +346,8 @@ function rebuildCoins() {
   S.coins = S.data.coins.map(c => {
     const e = S.edits[c.id];
     if (!e) return c;
-    const m = { ...c, ...(e.fields || {}), _edited: true };
+    const base = e.frontImage && c.images && e.frontImage === c.images.back ? swapSides(c) : c;
+    const m = { ...base, ...(e.fields || {}), _edited: true };
     if (e.reviewed) { m.needs_review = false; m.review_notes = []; }
     if (e.removed) m.removed = true;
     return m;
@@ -358,8 +359,23 @@ function rebuildCoins() {
     : n ? `${n} coin${n > 1 ? "s" : ""} edited and not yet exported.`
     : `${total} edited coin${total > 1 ? "s" : ""} exported, waiting for the next run of the script.`;
 }
+// Mirrors swap_sides() in coinlib/store.py: the photos and the text that describes each side.
+const SIDE_KEYS = { front_design: "back_design", back_design: "front_design",
+  front_inscriptions: "back_inscriptions", back_inscriptions: "front_inscriptions" };
+function swapSides(c) {
+  const m = { ...c, images: { front: c.images.back, back: c.images.front } };
+  for (const [a, b] of Object.entries(SIDE_KEYS)) m[a] = c[b];
+  return m;
+}
 function saveEdit(id, patch) {
   const e = S.edits[id] || { fields: {} };
+  if (patch.swap) {
+    const shown = S.coins.find(x => x.id === id), orig = S.data.coins.find(x => x.id === id);
+    e.frontImage = shown.images.back;
+    if (e.frontImage === orig.images.front) delete e.frontImage;
+    // Pending text edits follow the side they describe.
+    e.fields = Object.fromEntries(Object.entries(e.fields).map(([k, v]) => [SIDE_KEYS[k] || k, v]));
+  }
   Object.assign(e.fields, patch.fields || {});
   if (patch.reviewed) e.reviewed = true;
   if ("removed" in patch) e.removed = patch.removed;
@@ -375,7 +391,7 @@ $("#export-btn").addEventListener("click", async () => {
   if (!ids.length) { alert("There are no edits to export yet."); return; }
   const exportId = "x" + crypto.getRandomValues(new Uint32Array(2)).join("");
   const edits = {};
-  for (const id of ids) { const e = S.edits[id]; edits[id] = { fields: e.fields, reviewed: !!e.reviewed, ...("removed" in e ? { removed: e.removed } : {}) }; }
+  for (const id of ids) { const e = S.edits[id]; edits[id] = { fields: e.fields, reviewed: !!e.reviewed, ...("removed" in e ? { removed: e.removed } : {}), ...(e.frontImage ? { front_image: e.frontImage } : {}) }; }
   const doc = { format: "coin-library-edits", version: 1, export_id: exportId, exported_at: new Date().toISOString(), edits };
   const name = `coin-edits-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
   const file = new File([JSON.stringify(doc, null, 1)], name, { type: "application/json" });
@@ -627,6 +643,7 @@ function openDetail(id) {
     html += `<div class="notice"><b>Please check this entry.</b><ul>${c.review_notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`;
   if (edit) html += `<div class="edit-actions">
       ${c.needs_review ? `<button class="btn small" id="d-reviewed">Mark as reviewed</button>` : ""}
+      ${c.images?.front && c.images?.back ? `<button class="btn small" id="d-swap">Swap front and back</button>` : ""}
       <button class="btn small ${c.removed ? "" : "danger"}" id="d-remove">${c.removed ? "Keep this coin" : "Remove from library"}</button>
     </div>`;
   for (const [title, fields] of SECTIONS) {
@@ -650,6 +667,7 @@ function openDetail(id) {
   $$("img[data-img]", body).forEach(img => imageURL(img.dataset.img, "t").then(u => img.src = u).catch(() => {}));
   $$(".side[data-full]", body).forEach(b => b.addEventListener("click", () => openViewer(b.dataset.full)));
   $("#d-reviewed")?.addEventListener("click", () => { saveEdit(id, { reviewed: true }); openDetail(id); render(); });
+  $("#d-swap")?.addEventListener("click", () => { saveEdit(id, { swap: true }); openDetail(id); render(); });
   $("#d-remove")?.addEventListener("click", () => {
     if (!c.removed && !confirm("Remove this coin from the library? You can undo this until the next run.")) return;
     saveEdit(id, { removed: !c.removed }); openDetail(id); render();
