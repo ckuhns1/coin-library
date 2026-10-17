@@ -574,8 +574,7 @@ const SECTIONS = [
   ["Value", [
     ["_exchange", "Exchange value", "none", c => { const x = exchangeUSD(c); return `<span class="${x.usd != null ? "big-val" : ""}">${esc(x.text)}</span><div class="hint">${esc(x.note)}</div>`; }],
     ["collector_value_usd", "Collector value", "number", c => c.collector_value_usd != null ? `<span class="big-val">${money(c.collector_value_usd)}</span><div class="hint">${esc(c.collector_value_source || "")}${c.collector_value_date ? ", " + esc(c.collector_value_date) : ""}</div>` : null],
-    ["grade_estimate", "Condition (estimated)", "grade", c => GRADES[c.grade_estimate] || null],
-    ["grade_notes", "Condition notes", "textarea", null, true],
+    ["grade_estimate", "Condition (estimated)", "grade", c => GRADES[c.grade_estimate] ? esc(GRADES[c.grade_estimate]) + (c.grade_reason ? `<div class="hint">${esc(c.grade_reason)}</div>` : "") : null],
     ["still_legal_tender", "Still legal tender", "bool", c => c.still_legal_tender == null ? null : c.still_legal_tender ? "Yes" : `No${c.demonetized_date ? ` (since ${esc(c.demonetized_date)})` : ""}`],
   ]],
   ["Design", [
