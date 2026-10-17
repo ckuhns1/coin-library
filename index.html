@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Coin Library</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23c8962e' stroke='%238a6414' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%238a6414' stroke-width='3'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f6f3ee; --surface: #ffffff; --surface-2: #efeae2; --text: #1f1b16; --muted: #6b6258;
+  --border: #ddd5ca; --accent: #8a5a0b; --accent-soft: #f3e6cc; --danger: #a8321f; --ok: #2f6b3a;
+  --warn-bg: #fff2d6; --warn-text: #7a4b00; --shadow: 0 1px 2px rgba(40,30,10,.06), 0 4px 14px rgba(40,30,10,.06);
+  --radius: 14px; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15130f; --surface: #1f1c17; --surface-2: #29251f; --text: #efe9df; --muted: #a79d90;
+    --border: #3a342b; --accent: #e0b062; --accent-soft: #3a2f1c; --danger: #ef7a65; --ok: #79c08a;
+    --warn-bg: #3b2e14; --warn-text: #f1c977; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15130f; --surface: #1f1c17; --surface-2: #29251f; --text: #efe9df; --muted: #a79d90;
+  --border: #3a342b; --accent: #e0b062; --accent-soft: #3a2f1c; --danger: #ef7a65; --ok: #79c08a;
+  --warn-bg: #3b2e14; --warn-text: #f1c977; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.hidden { display: none !important; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- lock screen ---------- */
+#lock { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
+.lock-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 28px 24px; box-shadow: var(--shadow); text-align: center; }
+.lock-card svg { width: 56px; height: 56px; }
+.lock-card h1 { font-size: 1.5rem; margin: 10px 0 4px; letter-spacing: -.01em; }
+.lock-card p { color: var(--muted); margin: 0 0 20px; }
+.lock-card input[type=password] { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface-2); font-size: 1rem; }
+.lock-card label.check { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 14px 0; color: var(--muted); font-size: .92rem; }
+.btn { border: 1px solid var(--border); background: var(--surface); padding: 9px 14px; border-radius: 10px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.small { padding: 6px 10px; font-size: .9rem; }
+.lock-card .btn.primary { width: 100%; padding: 13px; font-size: 1rem; }
+#lock-error { color: var(--danger); min-height: 1.4em; margin-top: 10px; font-size: .92rem; }
+
+/* ---------- header ---------- */
+header.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--border); }
+.top-row { display: flex; align-items: center; gap: 10px; padding-top: 12px; padding-bottom: 10px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.15rem; margin-right: auto; white-space: nowrap; }
+.brand svg { width: 26px; height: 26px; flex: none; }
+.summary { color: var(--muted); font-size: .88rem; padding-bottom: 10px; display: flex; gap: 14px; flex-wrap: wrap; }
+.summary b { color: var(--text); font-weight: 600; }
+.search-row { display: flex; gap: 8px; padding-bottom: 12px; }
+.search-row input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+.edit-toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+#editbar { background: var(--warn-bg); color: var(--warn-text); }
+#editbar .wrap { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 8px; padding-bottom: 8px; font-size: .92rem; }
+#editbar .wrap span { margin-right: auto; }
+
+/* ---------- filters ---------- */
+#filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 14px 0 4px; }
+#filters label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+#filters select, #filters input { text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--text);
+  padding: 8px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); width: 100%; }
+.years { display: flex; gap: 6px; }
+.filter-actions { display: flex; align-items: end; gap: 8px; }
+.toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 0; color: var(--muted); font-size: .9rem; flex-wrap: wrap; }
+.toolbar select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+
+/* ---------- grid ---------- */
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; padding-bottom: 40px; }
+@media (min-width: 700px) { #grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  text-align: left; padding: 0; box-shadow: var(--shadow); display: flex; flex-direction: column; transition: transform .12s ease; }
+.card:active { transform: scale(.985); }
+.card .pic { aspect-ratio: 1; background: var(--surface-2); display: grid; place-items: center; position: relative; }
+.card .pic img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
+.card .pic img.loaded { opacity: 1; }
+.card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.card .title { font-weight: 600; line-height: 1.25; }
+.card .sub { color: var(--muted); font-size: .86rem; }
+.card .val { font-size: .86rem; margin-top: 4px; color: var(--accent); font-weight: 600; }
+.badge { position: absolute; top: 8px; left: 8px; background: var(--warn-bg); color: var(--warn-text); font-size: .72rem;
+  font-weight: 700; padding: 3px 7px; border-radius: 99px; letter-spacing: .02em; }
+.badge.edited { left: auto; right: 8px; background: var(--accent-soft); color: var(--accent); }
+.empty { text-align: center; color: var(--muted); padding: 60px 16px; grid-column: 1 / -1; }
+
+/* ---------- detail ---------- */
+dialog { border: none; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; color: var(--text); }
+dialog::backdrop { background: rgba(10, 8, 5, .55); }
+#detail { width: min(860px, 100vw); height: 100vh; height: 100dvh; margin: 0 auto; }
+@media (min-width: 700px) { #detail { height: auto; max-height: calc(100vh - 48px); margin-top: 24px; } }
+.sheet { background: var(--bg); height: 100%; display: flex; flex-direction: column; }
+@media (min-width: 700px) { .sheet { border-radius: 18px; overflow: hidden; height: auto; max-height: calc(100vh - 48px); } }
+.sheet-head { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: center; padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top)); background: var(--surface); border-bottom: 1px solid var(--border); }
+.sheet-head h2 { font-size: 1.1rem; margin: 0 auto 0 0; line-height: 1.25; min-width: 0; }
+.sheet-body { overflow-y: auto; padding: 16px; padding-bottom: max(28px, env(safe-area-inset-bottom)); flex: 1; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+@media (min-width: 700px) { .sides { max-width: 540px; margin: 0 auto 16px; } }
+.side { background: var(--surface-2); border-radius: 12px; aspect-ratio: 1; overflow: hidden; position: relative; border: 0; padding: 0; }
+.side img { width: 100%; height: 100%; object-fit: contain; }
+.side span { position: absolute; bottom: 6px; left: 6px; font-size: .72rem; background: rgba(0,0,0,.55); color: #fff; padding: 2px 7px; border-radius: 99px; }
+.notice { background: var(--warn-bg); color: var(--warn-text); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: .92rem; }
+.notice ul { margin: 6px 0 0; padding-left: 18px; }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+.section h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 12px 14px 4px; }
+.rows { padding: 2px 14px 10px; }
+.row { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: .95rem; }
+.row:first-child { border-top: none; }
+.row .k { color: var(--muted); }
+.row .v { overflow-wrap: anywhere; }
+.row.stack { grid-template-columns: 1fr; gap: 2px; }
+.insc { margin: 0 0 6px; }
+.insc .orig { font-size: 1.05rem; }
+.insc .tr { color: var(--muted); font-size: .9rem; }
+.big-val { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+.na { color: var(--muted); font-style: italic; }
+.prose { padding: 4px 14px 14px; margin: 0; }
+.row input, .row select, .row textarea { width: 100%; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); }
+.row textarea { min-height: 70px; resize: vertical; }
+.hint { color: var(--muted); font-size: .8rem; margin-top: 3px; }
+.edit-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+a { color: var(--accent); }
+
+#viewer { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; }
+#viewer .inner { width: 100%; height: 100%; display: grid; place-items: center; background: rgba(0,0,0,.92); }
+#viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#viewer button { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 12px; background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 99px; width: 40px; height: 40px; font-size: 1.3rem; }
+.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="#c8962e" stroke="#8a6414" stroke-width="5"/><circle cx="32" cy="32" r="17" fill="none" stroke="#8a6414" stroke-width="3"/><path d="M27 25h10M27 32h10M27 39h10" stroke="#8a6414" stroke-width="3" stroke-linecap="round"/></symbol>
+</svg>
+
+<main id="lock">
+  <form class="lock-card" id="lock-form" autocomplete="on">
+    <svg><use href="#logo"/></svg>
+    <h1>Coin Library</h1>
+    <p>Enter the family password to open the collection.</p>
+    <input type="text" name="username" value="coin-library" autocomplete="username" hidden>
+    <input type="password" id="password" autocomplete="current-password" placeholder="Password" required autofocus>
+    <label class="check"><input type="checkbox" id="remember" checked> Remember on this device</label>
+    <button class="btn primary" type="submit" id="unlock-btn">Unlock</button>
+    <div id="lock-error" role="alert"></div>
+  </form>
+</main>
+
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="wrap">
+      <div class="top-row">
+        <div class="brand"><svg><use href="#logo"/></svg>Coin Library</div>
+        <button class="btn small edit-toggle" id="edit-toggle" aria-pressed="false">Edit mode</button>
+        <button class="btn small" id="lock-btn" title="Lock">Lock</button>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="search-row">
+        <input type="search" id="q" placeholder="Search country, design, inscription…" aria-label="Search">
+        <button class="btn" id="filter-btn" aria-expanded="false">Filters</button>
+      </div>
+    </div>
+  </header>
+  <div id="editbar" class="hidden">
+    <div class="wrap">
+      <span id="edit-count"></span>
+      <button class="btn small" id="export-btn">Export edits</button>
+      <button class="btn small danger" id="discard-btn">Discard</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div id="filters" class="hidden">
+      <label>Country<select data-f="country"></select></label>
+      <label>Continent<select data-f="continent"></select></label>
+      <label>Currency<select data-f="currency"></select></label>
+      <label>Mint<select data-f="mint_location"></select></label>
+      <label>Main metal<select data-f="main_metal"></select></label>
+      <label>Legal tender<select data-f="active">
+        <option value="">Any</option><option value="yes">Still legal tender</option><option value="no">No longer legal tender</option><option value="unknown">Unknown</option>
+      </select></label>
+      <label>Year<span class="years"><input type="number" inputmode="numeric" id="year-from" placeholder="From"><input type="number" inputmode="numeric" id="year-to" placeholder="To"></span></label>
+      <label>Review<select data-f="review"><option value="">All coins</option><option value="yes">Needs review</option><option value="no">Reviewed</option></select></label>
+      <div class="filter-actions"><button class="btn small" id="clear-filters">Clear filters</button></div>
+    </div>
+    <div class="toolbar">
+      <span id="count"></span>
+      <label>Sort <select id="sort">
+        <option value="country">Country</option>
+        <option value="year-asc">Year, oldest first</option>
+        <option value="year-desc">Year, newest first</option>
+        <option value="value-desc">Collector value</option>
+        <option value="added-desc">Recently added</option>
+      </select></label>
+    </div>
+    <div id="grid"></div>
+  </div>
+</div>
+
+<dialog id="detail" aria-labelledby="d-title"><div class="sheet">
+  <div class="sheet-head">
+    <h2 id="d-title"></h2>
+    <button class="btn small hidden" id="d-save">Save</button>
+    <button class="btn small" id="d-close" aria-label="Close">Close</button>
+  </div>
+  <div class="sheet-body" id="d-body"></div>
+</div></dialog>
+
+<dialog id="viewer"><div class="inner"><img alt=""><button aria-label="Close">×</button></div></dialog>
+
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const S = { meta: null, key: null, data: null, coins: [], rates: null, ratesInfo: "", edits: store.get("coinlib-edits") || {},
+            editMode: false, imgCache: new Map(), current: null };
+
+/* ---------- crypto ---------- */
+const b64ToBytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+const bytesToB64 = u => btoa(String.fromCharCode(...new Uint8Array(u)));
+
+async function deriveKey(password, meta) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: b64ToBytes(meta.salt), iterations: meta.iterations },
+    base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+}
+async function decrypt(buf) {
+  const u = new Uint8Array(buf);
+  if (u[0] !== 67 || u[1] !== 76 || u[2] !== 49) throw new Error("bad file");
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(3, 15) }, S.key, u.slice(15));
+}
+async function inflate(buf) {
+  const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Response(stream).text();
+}
+async function fetchBin(path) {
+  const r = await fetch(path, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`${path}: ${r.status}`);
+  return r.arrayBuffer();
+}
+
+async function openLibrary(key) {
+  S.key = key;
+  const plain = await decrypt(await fetchBin("data.bin"));   // throws on a wrong password
+  S.data = JSON.parse(await inflate(plain));
+  // Edits that the script has already merged are no longer pending.
+  const applied = new Set(S.data.applied_exports || []);
+  for (const [id, e] of Object.entries(S.edits)) if (e.exportId && applied.has(e.exportId)) delete S.edits[id];
+  store.set("coinlib-edits", S.edits);
+  rebuildCoins();
+  $("#lock").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  buildFilters();
+  restoreView();
+  render();
+  loadRates().then(() => { render(); if (S.current) openDetail(S.current); });
+  const linked = location.hash.slice(1);
+  if (linked && S.coins.some(c => c.id === linked)) openDetail(linked);
+}
+
+async function tryRemembered() {
+  const saved = store.get("coinlib-key");
+  if (!saved || saved.salt !== S.meta.salt) return false;
+  try {
+    const key = await crypto.subtle.importKey("raw", b64ToBytes(saved.key), { name: "AES-GCM" }, true, ["decrypt"]);
+    await openLibrary(key);
+    return true;
+  } catch { store.del("coinlib-key"); return false; }
+}
+
+$("#lock-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const btn = $("#unlock-btn"), err = $("#lock-error");
+  btn.disabled = true; btn.textContent = "Unlocking…"; err.textContent = "";
+  try {
+    const key = await deriveKey($("#password").value, S.meta);
+    try { await openLibrary(key); }
+    catch (e) { if (e.name === "OperationError") throw new Error("That password didn't work."); throw e; }
+    if ($("#remember").checked) store.set("coinlib-key", { salt: S.meta.salt, key: bytesToB64(await crypto.subtle.exportKey("raw", key)) });
+    $("#password").value = "";
+  } catch (e) {
+    err.textContent = e.message || "Couldn't open the library.";
+  } finally { btn.disabled = false; btn.textContent = "Unlock"; }
+});
+$("#lock-btn").addEventListener("click", () => { store.del("coinlib-key"); location.reload(); });
+
+/* ---------- exchange rates (live, cached for 6 hours) ---------- */
+async function loadRates() {
+  const cached = store.get("coinlib-rates");
+  if (cached && Date.now() - cached.fetched < 6 * 3600e3) { S.rates = cached.rates; S.ratesInfo = cached.info; return; }
+  const sources = [
+    async () => { const d = await (await fetch("https://open.er-api.com/v6/latest/USD")).json();
+      if (d.result !== "success") throw 0; return { rates: d.rates, info: `rates of ${d.time_last_update_utc?.slice(5, 16) || "today"}` }; },
+    async () => { const d = await (await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")).json();
+      const rates = {}; for (const [k, v] of Object.entries(d.usd)) rates[k.toUpperCase()] = v; return { rates, info: `rates of ${d.date}` }; },
+  ];
+  for (const src of sources) {
+    try { const r = await src(); S.rates = r.rates; S.ratesInfo = r.info; store.set("coinlib-rates", { ...r, fetched: Date.now() }); return; } catch {}
+  }
+  const snap = S.data.rates_snapshot;
+  if (snap) { S.rates = snap.rates; S.ratesInfo = `offline: rates from ${String(snap.date || "the last build").slice(5, 16)}`; }
+}
+
+function exchangeUSD(c) {
+  if (c.still_legal_tender === false) return { text: "Not exchangeable", note: "no longer legal tender" };
+  if (c.still_legal_tender == null) return { text: "Unknown", note: "legal tender status unknown" };
+  if (c.face_value == null || !c.currency_iso) return { text: "Unknown", note: "face value or currency missing" };
+  if (!S.rates) return { text: "…", note: "loading today's rates" };
+  const rate = c.currency_iso === "USD" ? 1 : S.rates[c.currency_iso];
+  if (!rate) return { text: "Rate unavailable", note: `no rate for ${c.currency_iso}` };
+  return { text: money(c.face_value / rate), note: S.ratesInfo, usd: c.face_value / rate };
+}
+function money(v) {
+  if (v == null || isNaN(v)) return "";
+  const opts = { style: "currency", currency: "USD" };
+  if (Math.abs(v) < 1 && v !== 0) Object.assign(opts, { maximumSignificantDigits: 2, minimumSignificantDigits: 1 });
+  return new Intl.NumberFormat("en-US", opts).format(v);
+}
+
+/* ---------- data + local edits ---------- */
+function rebuildCoins() {
+  S.coins = S.data.coins.map(c => {
+    const e = S.edits[c.id];
+    if (!e) return c;
+    const m = { ...c, ...(e.fields || {}), _edited: true };
+    if (e.reviewed) { m.needs_review = false; m.review_notes = []; }
+    if (e.removed) m.removed = true;
+    return m;
+  });
+  const n = Object.keys(S.edits).filter(id => !S.edits[id].exportId).length;
+  const total = Object.keys(S.edits).length;
+  $("#editbar").classList.toggle("hidden", !(S.editMode || total));
+  $("#edit-count").textContent = total === 0 ? "Edit mode: open a coin to correct it. Changes stay on this device until you export them."
+    : n ? `${n} coin${n > 1 ? "s" : ""} edited and not yet exported.`
+    : `${total} edited coin${total > 1 ? "s" : ""} exported, waiting for the next run of the script.`;
+}
+function saveEdit(id, patch) {
+  const e = S.edits[id] || { fields: {} };
+  Object.assign(e.fields, patch.fields || {});
+  if (patch.reviewed) e.reviewed = true;
+  if ("removed" in patch) e.removed = patch.removed;
+  delete e.exportId;
+  e.updated = new Date().toISOString();
+  S.edits[id] = e;
+  store.set("coinlib-edits", S.edits);
+  rebuildCoins();
+}
+
+$("#export-btn").addEventListener("click", async () => {
+  const ids = Object.keys(S.edits);
+  if (!ids.length) { alert("There are no edits to export yet."); return; }
+  const exportId = "x" + crypto.getRandomValues(new Uint32Array(2)).join("");
+  const edits = {};
+  for (const id of ids) { const e = S.edits[id]; edits[id] = { fields: e.fields, reviewed: !!e.reviewed, ...("removed" in e ? { removed: e.removed } : {}) }; }
+  const doc = { format: "coin-library-edits", version: 1, export_id: exportId, exported_at: new Date().toISOString(), edits };
+  const name = `coin-edits-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
+  const file = new File([JSON.stringify(doc, null, 1)], name, { type: "application/json" });
+  let shared = false;
+  if (navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ files: [file], title: name }); shared = true; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  if (!shared) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(file); a.download = name; document.body.append(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  for (const id of ids) S.edits[id].exportId = exportId;
+  store.set("coinlib-edits", S.edits);
+  rebuildCoins();
+  alert(`Saved ${name}. Put it in the edits folder next to catalog.py; the next run merges it.`);
+});
+$("#discard-btn").addEventListener("click", () => {
+  if (!confirm("Discard all edits stored on this device? Exported files are not affected.")) return;
+  S.edits = {}; store.set("coinlib-edits", S.edits); rebuildCoins(); render();
+});
+$("#edit-toggle").addEventListener("click", () => {
+  S.editMode = !S.editMode;
+  $("#edit-toggle").setAttribute("aria-pressed", S.editMode);
+  rebuildCoins();
+  if (S.current) openDetail(S.current);
+});
+
+/* ---------- images ---------- */
+async function imageURL(imgId, size) {
+  const k = `${imgId}_${size}`;
+  if (!S.imgCache.has(k)) {
+    S.imgCache.set(k, (async () => {
+      const plain = await decrypt(await fetchBin(`img/${k}.bin`));
+      return URL.createObjectURL(new Blob([plain], { type: "image/jpeg" }));
+    })().catch(e => { S.imgCache.delete(k); throw e; }));
+  }
+  return S.imgCache.get(k);
+}
+const io = new IntersectionObserver(entries => {
+  for (const en of entries) {
+    if (!en.isIntersecting) continue;
+    io.unobserve(en.target);
+    const img = en.target;
+    imageURL(img.dataset.img, img.dataset.size).then(u => { img.src = u; img.onload = () => img.classList.add("loaded"); }).catch(() => {});
+  }
+}, { rootMargin: "400px" });
+
+/* ---------- filtering ---------- */
+const FILTER_FIELDS = ["country", "continent", "currency", "mint_location", "main_metal"];
+function buildFilters() {
+  for (const f of FILTER_FIELDS) {
+    const sel = $(`#filters select[data-f="${f}"]`);
+    const keep = sel.value;
+    const counts = new Map();
+    for (const c of S.coins) if (!c.removed && c[f]) counts.set(c[f], (counts.get(c[f]) || 0) + 1);
+    sel.innerHTML = `<option value="">All</option>` + [...counts].sort((a, b) => String(a[0]).localeCompare(b[0]))
+      .map(([v, n]) => `<option value="${esc(v)}">${esc(v)} (${n})</option>`).join("");
+    sel.value = keep;
+  }
+}
+function getFilters() {
+  const f = { q: $("#q").value.trim().toLowerCase(), sort: $("#sort").value, from: +$("#year-from").value || null, to: +$("#year-to").value || null };
+  for (const sel of $$("#filters select")) f[sel.dataset.f] = sel.value;
+  return f;
+}
+function searchText(c) {
+  if (!c._search) {
+    const ins = [...(c.front_inscriptions || []), ...(c.back_inscriptions || [])].flatMap(i => [i.original, i.translation]);
+    c._search = [c.country, c.issuer, c.continent, c.currency, c.denomination, c.year, c.year_on_coin, c.mint_location, c.mint_mark,
+      c.front_design, c.back_design, c.main_metal, c.km_number, c.period_facts, ...ins].filter(Boolean).join(" ").toLowerCase();
+  }
+  return c._search;
+}
+function filtered() {
+  const f = getFilters();
+  const words = f.q.split(/\s+/).filter(Boolean);
+  let list = S.coins.filter(c => {
+    if (c.removed && !S.editMode) return false;
+    for (const k of FILTER_FIELDS) if (f[k] && c[k] !== f[k]) return false;
+    if (f.active === "yes" && c.still_legal_tender !== true) return false;
+    if (f.active === "no" && c.still_legal_tender !== false) return false;
+    if (f.active === "unknown" && c.still_legal_tender != null) return false;
+    if (f.review === "yes" && !c.needs_review) return false;
+    if (f.review === "no" && c.needs_review) return false;
+    if (f.from && !(c.year >= f.from)) return false;
+    if (f.to && !(c.year <= f.to)) return false;
+    if (words.length) { const t = searchText(c); if (!words.every(w => t.includes(w))) return false; }
+    return true;
+  });
+  const by = {
+    "country": (a, b) => (a.country || "").localeCompare(b.country || "") || (a.year || 0) - (b.year || 0),
+    "year-asc": (a, b) => (a.year ?? 9999) - (b.year ?? 9999),
+    "year-desc": (a, b) => (b.year ?? -9999) - (a.year ?? -9999),
+    "value-desc": (a, b) => (b.collector_value_usd ?? -1) - (a.collector_value_usd ?? -1),
+    "added-desc": (a, b) => String(b.added_at).localeCompare(String(a.added_at)),
+  }[f.sort];
+  return list.sort(by);
+}
+function saveView() {
+  const f = getFilters();
+  store.set("coinlib-view", f);
+}
+function restoreView() {
+  const f = store.get("coinlib-view");
+  if (!f) return;
+  $("#q").value = f.q || ""; $("#sort").value = f.sort || "country";
+  $("#year-from").value = f.from || ""; $("#year-to").value = f.to || "";
+  for (const sel of $$("#filters select")) if (f[sel.dataset.f] != null) sel.value = f[sel.dataset.f];
+}
+for (const el of [$("#q"), $("#sort"), $("#year-from"), $("#year-to"), ...$$("#filters select")])
+  el.addEventListener("input", () => { saveView(); render(); });
+$("#filter-btn").addEventListener("click", () => {
+  const open = $("#filters").classList.toggle("hidden") === false;
+  $("#filter-btn").setAttribute("aria-expanded", open);
+});
+$("#clear-filters").addEventListener("click", () => {
+  for (const sel of $$("#filters select")) sel.value = "";
+  $("#year-from").value = $("#year-to").value = ""; $("#q").value = "";
+  saveView(); render();
+});
+
+/* ---------- rendering ---------- */
+function render() {
+  const live = S.coins.filter(c => !c.removed);
+  const total = live.reduce((s, c) => s + (c.collector_value_usd || 0), 0);
+  const countries = new Set(live.map(c => c.country).filter(Boolean)).size;
+  const review = live.filter(c => c.needs_review).length;
+  $("#summary").innerHTML = `<span><b>${live.length}</b> coins</span><span><b>${countries}</b> countries</span>` +
+    `<span>Collector value <b>${money(total) || "$0"}</b></span>` + (review ? `<span><b>${review}</b> to review</span>` : "");
+  const list = filtered();
+  const active = Object.entries(getFilters()).some(([k, v]) => k !== "sort" && v);
+  $("#count").textContent = active ? `Showing ${list.length} of ${live.length}` : `${list.length} coins`;
+  const grid = $("#grid");
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty">${live.length ? "No coins match these filters." : "No coins yet. Add photos to inputs/ and run the script."}</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(c => `
+    <button class="card" data-id="${c.id}">
+      <div class="pic">
+        ${c.images?.front ? `<img alt="" data-img="${c.images.front}" data-size="t">` : ""}
+        ${c.removed ? `<span class="badge">Removed</span>` : c.needs_review ? `<span class="badge">Review</span>` : ""}
+        ${c._edited ? `<span class="badge edited">Edited</span>` : ""}
+      </div>
+      <div class="body">
+        <div class="title">${esc(c.denomination || "Unidentified")}</div>
+        <div class="sub">${esc([c.country, c.year].filter(Boolean).join(" · "))}</div>
+        ${c.collector_value_usd != null ? `<div class="val">${money(c.collector_value_usd)}</div>` : ""}
+      </div>
+    </button>`).join("");
+  $$("img[data-img]", grid).forEach(img => io.observe(img));
+}
+$("#grid").addEventListener("click", ev => {
+  const card = ev.target.closest(".card");
+  if (card) openDetail(card.dataset.id);
+});
+
+/* ---------- detail view ---------- */
+const GRADES = { g: "Good", vg: "Very Good", f: "Fine", vf: "Very Fine", xf: "Extremely Fine", au: "About Uncirculated", unc: "Uncirculated" };
+const CONTINENTS = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "Antarctica"];
+const num = (v, d = 2) => v == null || v === "" ? null : (+v).toFixed(d).replace(/\.?0+$/, "");
+
+// Field definitions: [key, label, type, display]
+const SECTIONS = [
+  ["Identity", [
+    ["country", "Country", "text"], ["issuer", "Issued by", "text"], ["continent", "Continent", "continent"],
+    ["currency", "Currency", "text"], ["denomination", "Amount", "text"],
+    ["face_value", "Face value", "number", c => c.face_value != null ? `${num(c.face_value, 4)}${c.currency_iso ? " " + c.currency_iso : ""}` : null],
+    ["currency_iso", "Currency code (ISO)", "text", c => c.currency_iso, true],
+    ["year", "Year minted", "int", c => c.year ? `${c.year}${c.year_on_coin && c.year_on_coin != c.year ? ` <span class="na">(${esc(c.year_on_coin)} on coin)</span>` : ""}` : null],
+    ["year_on_coin", "Date as written", "text", null, true],
+    ["mint_location", "Mint", "text", c => [c.mint_location, c.mint_mark ? `mint mark “${esc(c.mint_mark)}”` : ""].filter(Boolean).map((x, i) => i ? x : esc(x)).join(", ") || null],
+    ["mint_mark", "Mint mark", "text", null, true],
+  ]],
+  ["Value", [
+    ["_exchange", "Exchange value", "none", c => { const x = exchangeUSD(c); return `<span class="${x.usd != null ? "big-val" : ""}">${esc(x.text)}</span><div class="hint">${esc(x.note)}</div>`; }],
+    ["collector_value_usd", "Collector value", "number", c => c.collector_value_usd != null ? `<span class="big-val">${money(c.collector_value_usd)}</span><div class="hint">${esc(c.collector_value_source || "")}${c.collector_value_date ? ", " + esc(c.collector_value_date) : ""}</div>` : null],
+    ["grade_estimate", "Condition (estimated)", "grade", c => GRADES[c.grade_estimate] || null],
+    ["still_legal_tender", "Still legal tender", "bool", c => c.still_legal_tender == null ? null : c.still_legal_tender ? "Yes" : `No${c.demonetized_date ? ` (since ${esc(c.demonetized_date)})` : ""}`],
+  ]],
+  ["Design", [
+    ["front_design", "Front", "textarea"], ["back_design", "Back", "textarea"],
+    ["front_inscriptions", "Front inscriptions", "insc", c => inscHTML(c.front_inscriptions)],
+    ["back_inscriptions", "Back inscriptions", "insc", c => inscHTML(c.back_inscriptions)],
+  ]],
+  ["Physical", [
+    ["alloy", "Alloy", "alloy", c => (c.alloy || []).length ? c.alloy.map(a => `${esc(a.metal)}${a.percent != null ? " " + num(a.percent, 2) + "%" : ""}`).join(", ") + (c.composition_text ? `<div class="hint">${esc(c.composition_text)}</div>` : "") : null],
+    ["main_metal", "Main metal", "text"],
+    ["diameter_mm", "Diameter", "number", c => c.diameter_mm != null ? `${num(c.diameter_mm / 10, 2)} cm` : null, false, "mm"],
+    ["thickness_mm", "Thickness", "number", c => c.thickness_mm != null ? `${num(c.thickness_mm, 2)} mm` : null, false, "mm"],
+    ["weight_g", "Weight", "number", c => c.weight_g != null ? `${num(c.weight_g, 2)} g` : null, false, "g"],
+    ["shape", "Shape", "none", c => c.shape || null, true],
+  ]],
+  ["History", [["period_facts", "Around this time", "textarea"]]],
+  ["Catalog", [
+    ["km_number", "KM number", "text"],
+    ["_numista", "Numista", "none", c => c.numista_url ? `<a href="${esc(c.numista_url)}" target="_blank" rel="noopener noreferrer">View catalog entry</a>` : null],
+    ["_specs", "Specs from", "none", c => esc(c.specs_source || "")],
+    ["_conf", "Identification confidence", "none", c => c.confidence != null ? `${Math.round(c.confidence * 100)}%` : null],
+    ["notes", "Notes", "textarea"],
+    ["_added", "Added", "none", c => c.added_at ? esc(c.added_at.slice(0, 10)) : null],
+    ["_id", "Library id", "none", c => esc(c.id)],
+  ]],
+];
+function inscHTML(list) {
+  if (!list || !list.length) return null;
+  return list.map(i => `<div class="insc"><div class="orig">${esc(i.original)}</div>${i.translation && i.translation !== i.original ? `<div class="tr">${esc(i.translation)}${i.script && i.script !== "Latin" ? ` · ${esc(i.script)}` : ""}</div>` : ""}</div>`).join("");
+}
+function editorHTML(key, type, c, unit) {
+  const v = c[key];
+  switch (type) {
+    case "textarea": return `<textarea data-k="${key}">${esc(v)}</textarea>`;
+    case "number": return `<input type="number" step="any" inputmode="decimal" data-k="${key}" value="${v ?? ""}">${unit ? `<div class="hint">in ${unit}</div>` : ""}`;
+    case "int": return `<input type="number" step="1" inputmode="numeric" data-k="${key}" value="${v ?? ""}">`;
+    case "bool": return `<select data-k="${key}"><option value="">Unknown</option><option value="true" ${v === true ? "selected" : ""}>Yes</option><option value="false" ${v === false ? "selected" : ""}>No</option></select>`;
+    case "grade": return `<select data-k="${key}">${Object.entries(GRADES).map(([g, n]) => `<option value="${g}" ${v === g ? "selected" : ""}>${n}</option>`).join("")}</select>`;
+    case "continent": return `<select data-k="${key}">${CONTINENTS.map(n => `<option ${v === n ? "selected" : ""}>${n}</option>`).join("")}</select>`;
+    case "alloy": return `<input data-k="${key}" value="${esc((v || []).map(a => a.metal + (a.percent != null ? " " + a.percent : "")).join(", "))}"><div class="hint">e.g. Copper 75, Nickel 25</div>`;
+    case "insc": return `<textarea data-k="${key}">${esc((v || []).map(i => `${i.original} = ${i.translation}`).join("\n"))}</textarea><div class="hint">One per line: original = English</div>`;
+    default: return `<input data-k="${key}" value="${esc(v)}">`;
+  }
+}
+function readEditor(el, c) {
+  const k = el.dataset.k, raw = el.value.trim();
+  const type = SECTIONS.flatMap(s => s[1]).find(f => f[0] === k)[2];
+  if (type === "number" || type === "int") return raw === "" ? null : +raw;
+  if (type === "bool") return raw === "" ? null : raw === "true";
+  if (type === "alloy") return raw ? raw.split(",").map(p => { const m = p.trim().match(/^(.*?)\s*([\d.]+)?\s*%?$/); return { metal: m[1].trim(), percent: m[2] ? +m[2] : null }; }).filter(a => a.metal) : [];
+  if (type === "insc") {
+    const old = c[k] || [];
+    return raw ? raw.split("\n").filter(l => l.trim()).map((l, i) => { const [o, ...t] = l.split(" = "); return { original: o.trim(), translation: (t.join(" = ") || o).trim(), script: old[i]?.script || "" }; }) : [];
+  }
+  if (k === "currency_iso") return raw ? raw.toUpperCase() : null;
+  return raw === "" ? null : raw;
+}
+
+function openDetail(id) {
+  const c = S.coins.find(x => x.id === id);
+  if (!c) return;
+  S.current = id;
+  const edit = S.editMode;
+  $("#d-title").textContent = [c.denomination, c.country, c.year].filter(Boolean).join(" · ");
+  $("#d-save").classList.toggle("hidden", !edit);
+  let html = `<div class="sides">${["front", "back"].map(side => c.images?.[side]
+    ? `<button class="side" data-full="${c.images[side]}"><img alt="${side}" data-img="${c.images[side]}" data-size="t"><span>${side === "front" ? "Front" : "Back"}</span></button>` : `<div class="side"></div>`).join("")}</div>`;
+  if (c.removed) html += `<div class="notice">This coin is marked for removal. It disappears from the library on the next run.</div>`;
+  if (c.needs_review && (c.review_notes || []).length)
+    html += `<div class="notice"><b>Please check this entry.</b><ul>${c.review_notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`;
+  if (edit) html += `<div class="edit-actions">
+      ${c.needs_review ? `<button class="btn small" id="d-reviewed">Mark as reviewed</button>` : ""}
+      <button class="btn small ${c.removed ? "" : "danger"}" id="d-remove">${c.removed ? "Keep this coin" : "Remove from library"}</button>
+    </div>`;
+  for (const [title, fields] of SECTIONS) {
+    let rows = "";
+    for (const [key, label, type, show, editOnly, unit] of fields) {
+      if (edit && type !== "none") {
+        rows += `<div class="row ${type === "textarea" || type === "insc" ? "stack" : ""}"><div class="k">${label}</div><div class="v">${editorHTML(key, type, c, unit)}</div></div>`;
+        continue;
+      }
+      if (editOnly && !edit) continue;
+      const v = show ? show(c) : (c[key] != null && c[key] !== "" ? esc(c[key]) : null);
+      if (key.startsWith("_") && v == null) continue;
+      const stack = type === "textarea" || type === "insc";
+      if (title === "History" && !edit) { rows += v ? `<p class="prose">${v}</p>` : `<p class="prose na">No notes.</p>`; continue; }
+      rows += `<div class="row ${stack ? "stack" : ""}"><div class="k">${label}</div><div class="v">${v ?? `<span class="na">Unknown</span>`}</div></div>`;
+    }
+    html += `<section class="section"><h3>${title}</h3>${title === "History" && !edit ? rows : `<div class="rows">${rows}</div>`}</section>`;
+  }
+  const body = $("#d-body");
+  body.innerHTML = html;
+  $$("img[data-img]", body).forEach(img => imageURL(img.dataset.img, "t").then(u => img.src = u).catch(() => {}));
+  $$(".side[data-full]", body).forEach(b => b.addEventListener("click", () => openViewer(b.dataset.full)));
+  $("#d-reviewed")?.addEventListener("click", () => { saveEdit(id, { reviewed: true }); openDetail(id); render(); });
+  $("#d-remove")?.addEventListener("click", () => {
+    if (!c.removed && !confirm("Remove this coin from the library? You can undo this until the next run.")) return;
+    saveEdit(id, { removed: !c.removed }); openDetail(id); render();
+  });
+  history.replaceState(null, "", "#" + id);
+  const dlg = $("#detail");
+  if (!dlg.open) { dlg.showModal(); body.scrollTop = 0; }
+}
+// Key-order-insensitive comparison, so re-saving an untouched field isn't an edit.
+const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x)
+  ? Object.fromEntries(Object.keys(x).sort().map(key => [key, x[key]])) : x);
+$("#d-save").addEventListener("click", () => {
+  const c = S.coins.find(x => x.id === S.current);
+  const fields = {};
+  for (const el of $$("[data-k]", $("#d-body"))) {
+    const v = readEditor(el, c);
+    if (canon(v) !== canon(c[el.dataset.k] ?? null)) fields[el.dataset.k] = v;
+  }
+  if (Object.keys(fields).length) saveEdit(S.current, { fields });
+  for (const c2 of S.coins) delete c2._search;
+  buildFilters(); render(); openDetail(S.current);
+  const b = $("#d-save"); b.textContent = Object.keys(fields).length ? "Saved" : "No changes"; setTimeout(() => b.textContent = "Save", 1400);
+});
+$("#d-close").addEventListener("click", () => $("#detail").close());
+$("#detail").addEventListener("close", () => { S.current = null; history.replaceState(null, "", location.pathname + location.search); });
+$("#detail").addEventListener("click", ev => { if (ev.target === $("#detail")) $("#detail").close(); });
+
+async function openViewer(imgId) {
+  const v = $("#viewer"), img = $("img", v);
+  img.removeAttribute("src");
+  v.showModal();
+  try { img.src = await imageURL(imgId, "f"); } catch { v.close(); }
+}
+$("#viewer").addEventListener("click", () => $("#viewer").close());
+
+/* ---------- start ---------- */
+(async () => {
+  try {
+    S.meta = await (await fetch("meta.json", { cache: "no-cache" })).json();
+  } catch {
+    $("#lock-error").textContent = "Couldn't load the library files. If you opened this file directly, use the website link instead.";
+    return;
+  }
+  if (!window.crypto?.subtle || !window.DecompressionStream) {
+    $("#lock-error").textContent = "This browser is too old to open the library. Please update it.";
+    return;
+  }
+  await tryRemembered();
+})();
+</script>
+</body>
+</html>
